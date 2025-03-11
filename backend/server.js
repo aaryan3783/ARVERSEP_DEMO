@@ -62,7 +62,7 @@ const videos = [
         "genre": "Sci-Fi",
         "category": "Movie",
         "duration": "2h 28m",
-        "thumbnail": "https://akns-images.eonline.com/eol_images/Entire_Site/20191019/rs_634x941-191119145916-634-Little-Women-CE-111919.jpg?fit=around%7C634:941&output-quality=90&crop=634:941;center,top"
+        "thumbnail": "https://akns-images.eonline.com/eol_images/Entire_Site/20191019/rs_634x941-191119145916-634-Little-Women-CE-111919.jpg?fit=around%7C634:941&output-quality=90&crop=634:941;center,top",
         "videoUrl": "https://www.learningcontainer.com/wp-content/uploads/2020/05/sample-mp4-file.mp4"
     },
     {   "id": 2,
