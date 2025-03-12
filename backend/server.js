@@ -141,22 +141,25 @@ app.post("/signup", (req, res) => {
     if (!email || !password) {
         res.status(400).json({ message: "Email and password are required" });
     } else {
-        User.findOne({ email }).then((existingUser) => {
-            if (existingUser) {
+        User.findOne({ email }, (err, existingUser) => {
+            if (err) {
+                res.status(500).json({ message: "Database error", error: err });
+            } else if (existingUser) {
                 res.status(400).json({ message: "User already exists" });
             } else {
                 const newUser = new User({ email, password });
-                newUser.save().then(() => {
-                    res.status(201).json({ message: "Signup successful!" });
-                }).catch((error) => {
-                    res.status(500).json({ message: "Error saving user", error });
+                newUser.save((saveErr) => {
+                    if (saveErr) {
+                        res.status(500).json({ message: "Error saving user", error: saveErr });
+                    } else {
+                        res.status(201).json({ message: "Signup successful!" });
+                    }
                 });
             }
-        }).catch((error) => {
-            res.status(500).json({ message: "Database error", error });
         });
     }
 });
+
 
 
 
