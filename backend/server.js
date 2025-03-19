@@ -1,172 +1,41 @@
+require("dotenv").config(); // Load environment variables
 const express = require("express");
 const cors = require("cors");
-const bodyParser = require("body-parser");
-const mongoose = require("mongoose");
-
-// ** MongoDB Connection **
-mongoose.connect("mongodb://127.0.0.1:27017/riteshdb", )
-    .then(() => console.log("MongoDB Connected Successfully!"))
-    .catch(err => console.error("MongoDB Connection Error:", err));
+const { connectDB } = require("./config/database");
+const adminRoutes = require("./routes/adminRoutes");
 
 const app = express();
+//
+
+// Middleware
 app.use(cors());
-app.use(bodyParser.json());
+app.use(express.json()); // Replaces body-parser
 
-// ** Schema & Models **
-
-// User Schema
-const userSchema = new mongoose.Schema({
-    email: String,
-    password: String
+// ** Connect to Database **
+connectDB().then(() => {
+    console.log(" Database Connected");
+}).catch((error) => {
+    console.error(" Database Connection Failed:", error);
+    process.exit(1); // Stop the server if DB connection fails
 });
-const User = mongoose.model("User", userSchema);
+// Routes
+const userRoutes = require("./routes/userRoutes");
+const videoRoutes = require("./routes/videoRoutes");
+const careerRoutes = require("./routes/careerRoutes");
+const dashboardRoutes = require("./routes/dashboardRoutes");
 
-// Video Schema
-const videoSchema = new mongoose.Schema({
-    id: Number,
-    name: String,
-    language: String,
-    genre: String,
-    category: String,
-    duration: String,
-    thumbnail: String,
-    videoUrl: String
+app.use("/user", userRoutes);
+app.use("/videos", videoRoutes);
+app.use("/careers", careerRoutes);
+app.use("/dashboard", dashboardRoutes);
+app.use("/admin", adminRoutes);
+
+// Default Route (To Handle Undefined Routes)
+app.use((req, res) => {
+    res.status(404).json({ error: "Route Not Found" });
 });
-const Video = mongoose.model("Video", videoSchema);
-
-// Career Schema
-const careerSchema = new mongoose.Schema({
-    id: Number,
-    company: String,
-    title: String,
-    description: String,
-    deadline: String,
-    category: String
-});
-const Career = mongoose.model("Career", careerSchema);
-
-// Dashboard Schema
-const dashboardSchema = new mongoose.Schema({
-    TotalUsers: Number,
-    ActiveUsers: Number,
-    SubscribedUsers: Number,
-    TotalEarning: Number
-});
-const Dashboard = mongoose.model("Dashboard", dashboardSchema);
-
-// ** APIs **
-
-// ** GET Users **
-app.get("/users", async (req, res) => {
-    try {
-        const users = await User.find();
-        res.status(200).json(users);
-    } catch (error) {
-        res.status(500).json({ message: "Error fetching users", error });
-    }
-});
-
-// ** POST Register a User **
-app.post("/register", async (req, res) => {
-    const { email, password } = req.body;
-    
-    if (!email || !password) {
-        return res.status(400).json({ message: "Email and password are required" });
-    }
-
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-        return res.status(400).json({ message: "User already exists" });
-    }
-
-    const newUser = new User({ email, password });
-    await newUser.save();
-    res.status(201).json({ message: "User registered successfully" });
-});
-
-// ** POST Login User **
-app.post("/login", async (req, res) => {
-    const { email, password } = req.body;
-    const user = await User.findOne({ email, password });
-
-    if (!user) {
-        return res.status(401).json({ message: "Invalid email or password" });
-    }
-
-    res.status(200).json({ message: "User verified", status: "success" });
-});
-
-// ** GET Dashboard Data **
-app.get("/dashboard", async (req, res) => {
-    try {
-        const dashboardData = await Dashboard.findOne();
-        res.status(200).json(dashboardData);
-    } catch (error) {
-        res.status(500).json({ message: "Error fetching dashboard data", error });
-    }
-});
-
-// ** GET Videos **
-app.get("/video", async (req, res) => {
-    try {
-        const videos = await Video.find();
-        res.status(200).json(videos);
-    } catch (error) {
-        res.status(500).json({ message: "Error fetching videos", error });
-    }
-});
-
-// ** GET Careers **
-app.get("/careers", async (req, res) => {
-    try {
-        const careers = await Career.find();
-        res.status(200).json(careers);
-    } catch (error) {
-        res.status(500).json({ message: "Error fetching careers", error });
-    }
-});
-
-// ** GET Profile Data **
-app.get("/profile", (req, res) => {
-    const email = req.query.email;
-    console.log("Requested Profile Email:", email);
-    res.status(200).json({ message: "Profile endpoint hit!" });
-});
-
-
-// ** POST Register a User (Signup) **
-app.post("/signup", (req, res) => {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-        res.status(400).json({ message: "Email and password are required" });
-    } else {
-        User.findOne({ email }, (err, existingUser) => {
-            if (err) {
-                res.status(500).json({ message: "Database error", error: err });
-            } else if (existingUser) {
-                res.status(400).json({ message: "User already exists" });
-            } else {
-                const newUser = new User({ email, password });
-                newUser.save((saveErr) => {
-                    if (saveErr) {
-                        res.status(500).json({ message: "Error saving user", error: saveErr });
-                    } else {
-                        res.status(201).json({ message: "Signup successful!" });
-                    }
-                });
-            }
-        });
-    }
-});
-
-
-
-
-
-
-// ** Server Start **
-const PORT = 8000;
+// Start Server
+const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => {
     console.log(` Server running on port ${PORT}`);
 });
