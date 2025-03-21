@@ -6,6 +6,9 @@ const router = express.Router();
 router.get("/", async (req, res) => {
     try {
         const careers = await Career.find();
+        if(careers.length == 0){
+            res.status(401).json("No Careers Found");
+        }
         
         res.status(200).json(careers);
     } catch (error) {

@@ -1,9 +1,12 @@
 const mongoose = require("mongoose");
 require("dotenv").config();
 
-const DATABASE_URL = process.env.DATABASE_URL || "your_mongodb_connection_string";
+const DATABASE_URL = process.env.DATABASE_URL;
 
 const connectDB = async () => {
+    console.log(DATABASE_URL);
+    console.log(process.env.PORT);
+    
     try {
         if (mongoose.connection.readyState === 1) {
             console.log(" Already connected to MongoDB.");

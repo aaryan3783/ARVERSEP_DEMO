@@ -9,7 +9,7 @@ const Dashboard = mongoose.model("dashboard", dashboardSchema, "dashboard"); // 
 router.get("/", async (req, res) => {
     try {
         const data = await Dashboard.find(); // Fetch all documents
-        if (!data || data.length === 0) {
+        if (data.length == 0) {
             return res.status(404).json({ message: "No dashboard data found" });
         }
         res.status(200).json(data);

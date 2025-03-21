@@ -30,6 +30,10 @@ router.post("/login", async (req, res) => {
 router.get("/", async (req, res) => {
     try {
         const users = await User.find({}, "email"); // Retrieve only emails
+        if(users.length == 0){
+            res.status(401).json("No Users Data  Found");
+        }
+
         res.status(200).json(users);
     } catch (error) {
         console.error("Fetch users error:", error);
@@ -37,5 +41,48 @@ router.get("/", async (req, res) => {
     }
 });
 
+router.get("/detail", async (req, res) => {
+    try {
+        const email = req.query.email;
+        console.log("Requested Email:", email);
+
+        if (!email) {
+            return res.status(400).json({ message: "Email is required" });
+        }
+        
+        const user = await User.findOne({ email },{"password":0});
+        // const user = await User.findOne({ email },['name','email','gender','phonenumber','dob']);
+        if(user.length==0){
+            res.status(401).json("no data found");
+        } 
+
+        return res.json({ message: "User details retrieved successfully", user });
+
+    } catch (error) {
+        console.error("Error fetching user details:", error);
+        return res.status(500).json({ message: "Internal Server Error" });
+    }
+});
+router.post("/adduser", async (req, res) => {
+    try { 
+        
+        const newUser = new User({
+            name: "Rohan",
+            email: "rohan@gmail.com",
+            password: "12345678",
+            gender: "male",
+            dob: "28-08-2005",
+            phonenumber: "9876544410"
+        });
+        await newUser.save();
+
+        
+        res.status(201).json({ message: "User added successfully!", user: newUser });
+    } catch (error) {
+        
+        res.status(500).json({ message: "Internal Server Error" });
+    }
+});
+    
 
 module.exports = router;
