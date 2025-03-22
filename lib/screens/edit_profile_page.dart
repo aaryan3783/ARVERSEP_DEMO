@@ -1,19 +1,48 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class EditProfilePage extends StatefulWidget {
+  final String currentEmail;
+
+  EditProfilePage({required this.currentEmail});
+
   @override
   _EditProfilePageState createState() => _EditProfilePageState();
 }
 
 class _EditProfilePageState extends State<EditProfilePage> {
-  TextEditingController nameController = TextEditingController(text: "Gamerboy");
-  TextEditingController emailController = TextEditingController(text: "gamingbiy999@gmail.com");
+  TextEditingController nameController = TextEditingController();
+  TextEditingController emailController = TextEditingController();
   TextEditingController phoneController = TextEditingController();
 
   String selectedGender = "Male";
   DateTime selectedDate = DateTime.now();
 
   final _formKey = GlobalKey<FormState>();
+
+  @override
+  void initState() {
+    super.initState();
+    emailController.text = widget.currentEmail;
+    _loadProfileData();
+  }
+
+  void _loadProfileData() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? userJson = prefs.getString(widget.currentEmail);
+    if (userJson != null) {
+      Map<String, dynamic> userData = jsonDecode(userJson);
+      setState(() {
+        nameController.text = userData['name'] ?? "Gamerboy";
+        phoneController.text = userData['phone'] ?? "";
+        selectedGender = userData['gender'] ?? "Male";
+        selectedDate = DateTime.tryParse(userData['dob'] ?? "") ?? DateTime.now();
+      });
+    } else {
+      nameController.text = "Gamerboy";
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,9 +68,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   children: [
                     CircleAvatar(
                       radius: 50,
-                      backgroundColor: Colors.purple,
+                      backgroundColor: const Color.fromARGB(255, 197, 187, 199),
                       child: Text(
-                        nameController.text[0].toUpperCase(),
+                        nameController.text.isNotEmpty
+                            ? nameController.text[0].toUpperCase()
+                            : '',
                         style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Colors.white),
                       ),
                     ),
@@ -50,7 +81,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       right: 0,
                       child: GestureDetector(
                         onTap: () {
-                          // Handle image picker
+                          // Add image picker here if needed
                         },
                         child: CircleAvatar(
                           backgroundColor: Colors.black,
@@ -63,7 +94,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 ),
                 SizedBox(height: 20),
                 _buildTextField("Name", nameController),
-                _buildTextField("Email", emailController, validator: _validateEmail),
+                _buildTextField("Email", emailController, validator: _validateEmail, readOnly: true),
                 _buildTextField("Phone Number", phoneController, keyboardType: TextInputType.phone, validator: _validatePhone),
                 SizedBox(height: 20),
                 Row(
@@ -114,11 +145,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, {TextInputType keyboardType = TextInputType.text, String? Function(String?)? validator}) {
+  Widget _buildTextField(String label, TextEditingController controller, {TextInputType keyboardType = TextInputType.text, String? Function(String?)? validator, bool readOnly = false}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20.0),
       child: TextFormField(
         controller: controller,
+        readOnly: readOnly,
         keyboardType: keyboardType,
         validator: validator,
         decoration: InputDecoration(
@@ -143,9 +175,25 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
-  void _updateProfile() {
+  void _updateProfile() async {
     if (_formKey.currentState!.validate()) {
-      // Here you can send updated profile data to your backend/server
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+
+      Map<String, dynamic> userData = {
+        'name': nameController.text,
+        'email': emailController.text,
+        'phone': phoneController.text,
+        'dob': selectedDate.toIso8601String(),
+        'gender': selectedGender,
+      };
+
+      await prefs.setString(emailController.text, jsonEncode(userData));
+
+      Navigator.pop(context, {
+        'email': emailController.text,
+        'name': nameController.text,
+      });
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Profile Updated Successfully!")),
       );
@@ -155,9 +203,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
   String? _validateEmail(String? value) {
     if (value == null || value.isEmpty) {
       return 'Email cannot be empty';
-    }
-    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-      return 'Enter a valid email';
     }
     return null;
   }

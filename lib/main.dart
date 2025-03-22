@@ -14,9 +14,15 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       initialRoute: "/",
-      routes: {
-        "/": (context) => SignInPage(),
-        "/home": (context) =>  HomePage(),
+      onGenerateRoute: (settings) {
+        if (settings.name == '/') {
+          return MaterialPageRoute(builder: (context) => SignInPage());
+        } else if (settings.name == '/home') {
+          final args = settings.arguments as Map<String, dynamic>;
+          return MaterialPageRoute(
+              builder: (context) => HomePage(userEmail: args['userEmail']));
+        }
+        return null;
       },
     );
   }

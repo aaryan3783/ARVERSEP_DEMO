@@ -1,10 +1,47 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'settings_page.dart';
 import 'edit_profile_page.dart';
-import 'career_page.dart'; // Import the CareerPage
+import 'career_page.dart';
 
-class DrawerNavigation extends StatelessWidget {
+class DrawerNavigation extends StatefulWidget {
+  final String userEmail;
+
+  const DrawerNavigation({Key? key, required this.userEmail}) : super(key: key);
+
+  @override
+  _DrawerNavigationState createState() => _DrawerNavigationState();
+}
+
+class _DrawerNavigationState extends State<DrawerNavigation> {
+  late String userEmail;
+  String userName = "GAMERBOY"; // Default placeholder
+
+  @override
+  void initState() {
+    super.initState();
+    userEmail = widget.userEmail;
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    String? userJson = prefs.getString(widget.userEmail);
+    if (userJson != null) {
+      final userData = jsonDecode(userJson);
+      setState(() {
+        userName = userData['name'] ?? "GAMERBOY";
+        userEmail = userData['email'] ?? widget.userEmail;
+      });
+    } else {
+      setState(() {
+        userName = "GAMERBOY";
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -13,7 +50,7 @@ class DrawerNavigation extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Profile & Close Button
+            // Profile & Close Button (Original Design)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               child: Row(
@@ -22,17 +59,25 @@ class DrawerNavigation extends StatelessWidget {
                   Row(
                     children: [
                       GestureDetector(
-                        onTap: () {
-                          Navigator.push(
+                        onTap: () async {
+                          final updatedData = await Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => EditProfilePage()),
+                            MaterialPageRoute(
+                              builder: (context) => EditProfilePage(currentEmail: userEmail),
+                            ),
                           );
+                          if (updatedData != null) {
+                            setState(() {
+                              userEmail = updatedData['email'] ?? userEmail;
+                            });
+                            _loadUserData();
+                          }
                         },
                         child: CircleAvatar(
                           radius: 30,
                           backgroundColor: Colors.purple,
                           child: Text(
-                            "G",
+                            userName.isNotEmpty ? userName[0].toUpperCase() : "G",
                             style: TextStyle(
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
@@ -46,14 +91,14 @@ class DrawerNavigation extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            "GAMERBOY",
+                            userName,
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           Text(
-                            "gamingbiy999@gmail.com",
+                            userEmail,
                             style: TextStyle(
                               fontSize: 14,
                               color: Colors.black54,
@@ -81,7 +126,7 @@ class DrawerNavigation extends StatelessWidget {
             SizedBox(height: 10),
             Divider(),
 
-            // VIDEO Section
+            // VIDEO Section (Original)
             _buildSectionTitle("VIDEO"),
             Expanded(
               child: ListView(
@@ -116,7 +161,7 @@ class DrawerNavigation extends StatelessWidget {
                   }),
                   SizedBox(height: 40),
 
-                  // CONNECT Section (Social Media Icons)
+                  // CONNECT Section
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Column(
@@ -197,7 +242,9 @@ class DrawerNavigation extends StatelessWidget {
     return ListTile(
       title: Text(title, style: TextStyle(fontSize: 16)),
       trailing: Icon(Icons.chevron_right, color: Colors.black),
-      onTap: onTap,
+      onTap: onTap ?? () {
+        Navigator.pop(context);
+      },
     );
   }
 
@@ -219,7 +266,7 @@ class DrawerNavigation extends StatelessWidget {
 
   Widget socialIcon(String assetPath, String url) {
     return GestureDetector(
-      onTap: () => _launchUrl(url),
+      onTap: () => _launchURL(url),
       child: Image.asset(
         assetPath,
         width: 30,
@@ -228,8 +275,8 @@ class DrawerNavigation extends StatelessWidget {
     );
   }
 
-  void _launchUrl(String url) async {
-    Uri uri = Uri.parse(url);
+  void _launchURL(String url) async {
+    final Uri uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {

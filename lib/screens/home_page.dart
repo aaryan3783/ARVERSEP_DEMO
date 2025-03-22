@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
-// import 'package:http/http.dart' as http;
-// import 'dart:convert';
 import 'drawer_navigation.dart';
 import 'video_player_page.dart';
-// import 'dart:io';
 
 class HomePage extends StatefulWidget {
+  final String userEmail;
+
+  const HomePage({Key? key, required this.userEmail}) : super(key: key);
+
   @override
   _HomePageState createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  // final String apiUrl = Platform.isAndroid?"http://10.0.2.2:8000/video":"http://localhost:8000/video";
   List<dynamic> movies = [
     {
         "_id": "67d27ccae125d6617da1cb18",
@@ -57,30 +57,7 @@ class _HomePageState extends State<HomePage> {
         "thumbnail": "https://akns-images.eonline.com/eol_images/Entire_Site/20191019/rs_634x939-191119145914-634-Ford-v-Ferrari-CE-111919.jpg?fit=around%7C634:940&output-quality=90&crop=634:940;center,top",
         "videoUrl": "https://youtu.be/T0vBY9SNAWU?si=qWrfEQDzS645wgDG"
     }
-];
-
-  // @override
-  // void initState() {
-  //   super.initState();
-  //   fetchMovies();
-  // }
-
-  // Future<void> fetchMovies() async {
-  //   try {
-  //     final response = await http.get(Uri.parse(apiUrl));
-  //     // print("fetching movie");
-  //     if (response.statusCode == 200) {
-  //       final List<dynamic> data = jsonDecode(response.body);
-  //       setState(() {
-  //         movies = data;
-  //       });
-  //     } else {
-  //       print("Failed to load movies: ${response.statusCode}");
-  //     }
-  //   } catch (e) {
-  //     print("Error fetching movies: $e");
-  //   }
-  // }
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -112,7 +89,7 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
-      drawer: DrawerNavigation(),
+      drawer: DrawerNavigation(userEmail: widget.userEmail),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
