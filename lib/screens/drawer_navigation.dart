@@ -2,9 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'settings_page.dart';
-import 'edit_profile_page.dart';
-import 'career_page.dart';
+import 'dart:io';
 
 class DrawerNavigation extends StatefulWidget {
   final String userEmail;
@@ -17,7 +15,8 @@ class DrawerNavigation extends StatefulWidget {
 
 class _DrawerNavigationState extends State<DrawerNavigation> {
   late String userEmail;
-  String userName = "GAMERBOY"; // Default placeholder
+  String userName = "GAMERBOY";
+  String? profileImagePath;
 
   @override
   void initState() {
@@ -34,10 +33,13 @@ class _DrawerNavigationState extends State<DrawerNavigation> {
       setState(() {
         userName = userData['name'] ?? "GAMERBOY";
         userEmail = userData['email'] ?? widget.userEmail;
-      });
-    } else {
-      setState(() {
-        userName = "GAMERBOY";
+        profileImagePath = userData['profileImage'] ?? '';
+        // Check if the file exists
+        if (profileImagePath != null && profileImagePath!.isNotEmpty) {
+          if (!File(profileImagePath!).existsSync()) {
+            profileImagePath = null; // Clear the path if the file doesn't exist
+          }
+        }
       });
     }
   }
@@ -50,7 +52,7 @@ class _DrawerNavigationState extends State<DrawerNavigation> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Profile & Close Button (Original Design)
+            // Profile & Close Button
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               child: Row(
@@ -60,15 +62,16 @@ class _DrawerNavigationState extends State<DrawerNavigation> {
                     children: [
                       GestureDetector(
                         onTap: () async {
-                          final updatedData = await Navigator.push(
+                          final updatedData = await Navigator.pushNamed(
                             context,
-                            MaterialPageRoute(
-                              builder: (context) => EditProfilePage(currentEmail: userEmail),
-                            ),
+                            '/edit_profile',
+                            arguments: {'currentEmail': userEmail},
                           );
                           if (updatedData != null) {
+                            final data = updatedData as Map<String, dynamic>;
                             setState(() {
-                              userEmail = updatedData['email'] ?? userEmail;
+                              userEmail = data['email'] ?? userEmail;
+                              userName = data['name'] ?? userName;
                             });
                             _loadUserData();
                           }
@@ -76,14 +79,19 @@ class _DrawerNavigationState extends State<DrawerNavigation> {
                         child: CircleAvatar(
                           radius: 30,
                           backgroundColor: Colors.purple,
-                          child: Text(
-                            userName.isNotEmpty ? userName[0].toUpperCase() : "G",
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
+                          backgroundImage: profileImagePath != null && profileImagePath!.isNotEmpty
+                              ? FileImage(File(profileImagePath!))
+                              : null,
+                          child: profileImagePath == null || profileImagePath!.isEmpty
+                              ? Text(
+                                  userName.isNotEmpty ? userName[0].toUpperCase() : "G",
+                                  style: TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : null,
                         ),
                       ),
                       SizedBox(width: 10),
@@ -126,7 +134,7 @@ class _DrawerNavigationState extends State<DrawerNavigation> {
             SizedBox(height: 10),
             Divider(),
 
-            // VIDEO Section (Original)
+            // VIDEO Section
             _buildSectionTitle("VIDEO"),
             Expanded(
               child: ListView(
@@ -154,10 +162,7 @@ class _DrawerNavigationState extends State<DrawerNavigation> {
                   // SETTING Section
                   _buildSectionTitle("SETTING"),
                   _buildDrawerItem("Settings", onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => SettingsPage()),
-                    );
+                    Navigator.pushNamed(context, '/settings');
                   }),
                   SizedBox(height: 40),
 
@@ -197,10 +202,7 @@ class _DrawerNavigationState extends State<DrawerNavigation> {
                         ),
                         GestureDetector(
                           onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => CareerPage()),
-                            );
+                            Navigator.pushNamed(context, '/career');
                           },
                           child: Text(
                             "Career",
@@ -280,7 +282,9 @@ class _DrawerNavigationState extends State<DrawerNavigation> {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
-      throw 'Could not launch $url';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Could not launch $url")),
+      );
     }
   }
 }

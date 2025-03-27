@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'signin_page.dart'; // Import SignInPage for logout navigation
+import '../services/session_manager.dart';
 
 class SettingsPage extends StatelessWidget {
   @override
@@ -10,7 +10,7 @@ class SettingsPage extends StatelessWidget {
         title: Text("Settings"),
         backgroundColor: Colors.white,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () {
             Navigator.pop(context);
           },
@@ -26,12 +26,12 @@ class SettingsPage extends StatelessWidget {
           _buildSettingItem("Payment History"),
           _buildSettingItem("Manage Subscription"),
           _buildSettingItem("Help Center"),
-          _buildSettingItem("Contact Us", onTap: () => _openGmail()), // Open Gmail on tap
+          _buildSettingItem("Contact Us", onTap: () => _openGmail(context)),
           _buildSettingItem("Delete Account"),
           SizedBox(height: 20),
           _buildPremiumBanner(),
           SizedBox(height: 20),
-          _buildLogoutButton(context), // Navigate to Sign In page on logout
+          _buildLogoutButton(context),
         ],
       ),
     );
@@ -68,10 +68,33 @@ class SettingsPage extends StatelessWidget {
     return Center(
       child: ElevatedButton(
         onPressed: () {
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (context) => SignInPage()), // Navigate to Sign In page
-            (route) => false, // Removes all previous routes
+          // Show confirmation dialog
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Text("Logout"),
+              content: Text("Are you sure you want to logout?"),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text("Cancel"),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    // Clear the session
+                    await SessionManager.clearSession();
+
+                    // Navigate to SignInPage using named route
+                    Navigator.pushNamedAndRemoveUntil(
+                      context,
+                      '/',
+                      (route) => false,
+                    );
+                  },
+                  child: Text("Logout"),
+                ),
+              ],
+            ),
           );
         },
         style: ElevatedButton.styleFrom(
@@ -84,16 +107,18 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  void _openGmail() async {
+  void _openGmail(BuildContext context) async {
     final Uri emailLaunchUri = Uri(
       scheme: 'mailto',
-      path: 'support@gmail.com', // Change to your support email
+      path: 'support@gmail.com',
       queryParameters: {'subject': 'Support Request'},
     );
-    if (await launchUrl(emailLaunchUri)) {
+    if (await canLaunchUrl(emailLaunchUri)) {
       await launchUrl(emailLaunchUri);
     } else {
-      throw 'Could not open email';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Could not open email client")),
+      );
     }
   }
 }

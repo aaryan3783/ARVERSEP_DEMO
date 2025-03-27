@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../widgets/custom_button.dart';
-import 'signup_page.dart';
-import 'home_page.dart';
+import '../services/session_manager.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SignInPage extends StatefulWidget {
   @override
@@ -19,6 +20,7 @@ class _SignInPageState extends State<SignInPage> {
     String email = emailController.text.trim();
     String password = passwordController.text.trim();
 
+    // Validate required fields
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Email and Password are required")),
@@ -26,6 +28,7 @@ class _SignInPageState extends State<SignInPage> {
       return;
     }
 
+    // Validate email format
     final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
     if (!emailRegex.hasMatch(email)) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -38,11 +41,42 @@ class _SignInPageState extends State<SignInPage> {
       isLoading = true;
     });
 
-    await Future.delayed(const Duration(seconds: 2)); // Simulated loading
+    // Check credentials in SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    String? userJson = prefs.getString(email);
 
-    Navigator.pushReplacement(
+    if (userJson == null) {
+      setState(() {
+        isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Invalid email or password. Please sign up first.")),
+      );
+      return;
+    }
+
+    final userData = jsonDecode(userJson);
+    if (userData['password'] != password) {
+      setState(() {
+        isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Invalid email or password. Please sign up first.")),
+      );
+      return;
+    }
+
+    // Set the session
+    await SessionManager.setLoggedInEmail(email);
+
+    // Add a delay to simulate a loading effect (e.g., 2 seconds)
+    await Future.delayed(const Duration(seconds: 2));
+
+    // Navigate to HomePage using named route
+    Navigator.pushReplacementNamed(
       context,
-      MaterialPageRoute(builder: (context) => HomePage(userEmail: email)),
+      '/home',
+      arguments: {'userEmail': email},
     );
 
     setState(() {
@@ -132,7 +166,29 @@ class _SignInPageState extends State<SignInPage> {
                 width: double.infinity,
                 height: 50,
                 child: isLoading
-                    ? const Center(child: CircularProgressIndicator())
+                    ? Container(
+                        decoration: BoxDecoration(
+                          color: Colors.green.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+                            ),
+                            SizedBox(width: 16),
+                            Text(
+                              "Signing in...",
+                              style: TextStyle(
+                                color: Colors.green,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
                     : CustomButton(text: "SIGN IN", onPressed: loginUser),
               ),
               const SizedBox(height: 16),
@@ -168,10 +224,7 @@ class _SignInPageState extends State<SignInPage> {
                   const Text("Don't have an account? "),
                   TextButton(
                     onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => SignUpPage()),
-                      );
+                      Navigator.pushNamed(context, '/signup');
                     },
                     child: const Text(
                       "Sign Up",

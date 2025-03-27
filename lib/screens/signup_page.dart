@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'package:path_provider/path_provider.dart';
 
 class SignUpPage extends StatefulWidget {
   @override
@@ -15,21 +16,30 @@ class _SignUpPageState extends State<SignUpPage> {
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController confirmPasswordController = TextEditingController();
-  
+
   bool isPasswordVisible = false;
   bool isConfirmPasswordVisible = false;
   File? _image;
+  bool isLoading = false;
 
   Future<void> pickImage() async {
     final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
+      // Get the app's documents directory
+      final directory = await getApplicationDocumentsDirectory();
+      final String newPath = '${directory.path}/${pickedFile.name}';
+
+      // Copy the image to the persistent directory
+      final File newImage = await File(pickedFile.path).copy(newPath);
+
       setState(() {
-        _image = File(pickedFile.path);
+        _image = newImage;
       });
     }
   }
 
   Future<void> signUp() async {
+    // Validate password match
     if (passwordController.text != confirmPasswordController.text) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Passwords do not match"), backgroundColor: Colors.red),
@@ -37,30 +47,54 @@ class _SignUpPageState extends State<SignUpPage> {
       return;
     }
 
-    var request = http.MultipartRequest('POST', Uri.parse("http://your-server-ip:5000/register"));
-    request.fields['name'] = nameController.text;
-    request.fields['email'] = emailController.text;
-    request.fields['phone'] = phoneController.text;
-    request.fields['password'] = passwordController.text;
-
-    if (_image != null) {
-      request.files.add(await http.MultipartFile.fromPath('profile_image', _image!.path));
+    // Validate required fields
+    if (nameController.text.isEmpty ||
+        emailController.text.isEmpty ||
+        phoneController.text.isEmpty ||
+        passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("All fields are required"), backgroundColor: Colors.red),
+      );
+      return;
     }
 
-    var response = await request.send();
-    var responseData = await response.stream.bytesToString();
-    var jsonResponse = json.decode(responseData);
-
-    if (response.statusCode == 200) {
+    // Validate email format
+    final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
+    if (!emailRegex.hasMatch(emailController.text)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(jsonResponse["message"]), backgroundColor: Colors.green),
+        SnackBar(content: Text("Please enter a valid email address"), backgroundColor: Colors.red),
       );
-      Navigator.pop(context);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(jsonResponse["message"]), backgroundColor: Colors.red),
-      );
+      return;
     }
+
+    setState(() {
+      isLoading = true;
+    });
+
+    // Simulate a delay for the sign-up process
+    await Future.delayed(const Duration(seconds: 1));
+
+    // Store user data in SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    final userData = {
+      'name': nameController.text,
+      'email': emailController.text,
+      'phone': phoneController.text,
+      'password': passwordController.text,
+      'profileImage': _image?.path ?? '',
+    };
+
+    await prefs.setString(emailController.text, jsonEncode(userData));
+
+    setState(() {
+      isLoading = false;
+    });
+
+    // Show success message and navigate to SignInPage using named route
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Sign-up successful! Please sign in."), backgroundColor: Colors.green),
+    );
+    Navigator.pushReplacementNamed(context, '/');
   }
 
   @override
@@ -73,7 +107,12 @@ class _SignUpPageState extends State<SignUpPage> {
           children: [
             const Text(
               "SIGN UP",
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w500, decoration: TextDecoration.underline, decorationColor: Colors.green),
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w500,
+                decoration: TextDecoration.underline,
+                decorationColor: Colors.green,
+              ),
             ),
             const SizedBox(height: 20),
             GestureDetector(
@@ -89,26 +128,47 @@ class _SignUpPageState extends State<SignUpPage> {
             buildTextField("Name", nameController),
             buildTextField("Email ID", emailController),
             buildTextField("Phone No.", phoneController),
-            buildTextField("Password", passwordController, isPassword: true, isVisible: isPasswordVisible, onVisibilityToggle: () {
-              setState(() {
-                isPasswordVisible = !isPasswordVisible;
-              });
-            }),
-            buildTextField("Confirm Password", confirmPasswordController, isPassword: true, isVisible: isConfirmPasswordVisible, onVisibilityToggle: () {
-              setState(() {
-                isConfirmPasswordVisible = !isConfirmPasswordVisible;
-              });
-            }),
+            buildTextField(
+              "Password",
+              passwordController,
+              isPassword: true,
+              isVisible: isPasswordVisible,
+              onVisibilityToggle: () {
+                setState(() {
+                  isPasswordVisible = !isPasswordVisible;
+                });
+              },
+            ),
+            buildTextField(
+              "Confirm Password",
+              confirmPasswordController,
+              isPassword: true,
+              isVisible: isConfirmPasswordVisible,
+              onVisibilityToggle: () {
+                setState(() {
+                  isConfirmPasswordVisible = !isConfirmPasswordVisible;
+                });
+              },
+            ),
             const SizedBox(height: 20),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.green, minimumSize: Size(double.infinity, 50)),
-              onPressed: signUp,
-              child: Text("SIGN UP", style: TextStyle(color: Colors.white, fontSize: 16)),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        minimumSize: Size(double.infinity, 50),
+                      ),
+                      onPressed: signUp,
+                      child: Text("SIGN UP", style: TextStyle(color: Colors.white, fontSize: 16)),
+                    ),
             ),
             const SizedBox(height: 20),
             GestureDetector(
               onTap: () {
-                Navigator.pop(context);
+                Navigator.pushReplacementNamed(context, '/');
               },
               child: const Text(
                 "Already Login? Sign In",
@@ -121,7 +181,13 @@ class _SignUpPageState extends State<SignUpPage> {
     );
   }
 
-  Widget buildTextField(String hintText, TextEditingController controller, {bool isPassword = false, bool isVisible = false, VoidCallback? onVisibilityToggle}) {
+  Widget buildTextField(
+    String hintText,
+    TextEditingController controller, {
+    bool isPassword = false,
+    bool isVisible = false,
+    VoidCallback? onVisibilityToggle,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
